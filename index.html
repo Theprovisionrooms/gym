@@ -479,19 +479,19 @@
   <div class="hero-top">
     <div class="brandtag">[YOUR BRAND] <b>//</b> MAT-01 <b>//</b> FORM DEMO</div>
     <div class="rep-readout mono">
-      YOU <span class="rep-count" id="repCount">0</span> &nbsp;&nbsp; CPU <span class="rep-count cpu" id="cpuCount">0</span><br>
-      LAST CALL: <span class="call" id="lastCall">STANDBY</span>
+      TRACK_01 <span class="rep-count" id="repCount">0</span> &nbsp;&nbsp; TRACK_02 <span class="rep-count cpu" id="cpuCount">0</span><br>
+      01: <span class="call" id="lastCall">STANDBY</span> &nbsp;&nbsp; 02: <span class="call" id="cpuLastCall">STANDBY</span>
     </div>
   </div>
 
   <div class="hero-mid">
     <h1>It doesn't just count reps.<br>It corrects them.</h1>
-    <p>Move your cursor to throw a jab. The rig tracks the reach, locks the angle, and calls it clean or calls it wrong. That's the read your fighters get on every single rep, not just the ones a coach happened to be watching.</p>
+    <p>Two people, tracked live, no markers or sensors on the body. Move your cursor to throw a jab as TRACK_01 and watch the rig read your reach and lock the angle. TRACK_02 is running its own reps alongside you. Every rep gets called clean or called wrong, in real time, for both of them.</p>
   </div>
 
   <div class="hero-bottom">
     <span class="arrow">&#9660;&#9660;&#9660;</span>
-    MOVE TO THROW &middot; HOLD THE LOCK TO SCORE IT &middot; CPU'S THROWING BACK (TAP AND HOLD ON MOBILE)
+    MOVE TO THROW A JAB &middot; HOLD THE LOCK TO SCORE IT &middot; WATCH THE SECOND RIG GET TRACKED ALONGSIDE YOU
   </div>
 
   <div class="locked-flash" id="lockedFlash">
@@ -767,6 +767,7 @@
   const repCountEl = document.getElementById('repCount');
   const cpuCountEl = document.getElementById('cpuCount');
   const lastCallEl = document.getElementById('lastCall');
+  const cpuLastCallEl = document.getElementById('cpuLastCall');
   const lockedFlash = document.getElementById('lockedFlash');
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -809,19 +810,18 @@
   let lockTimer = 0, locked = false, flashTimer = 0;
   const calls = ['CLEAN','CLEAN','CLEAN','ELBOW FLARE','DROP YOUR GUARD','OVEREXTENDED','CLEAN'];
 
-  // CPU sparring partner state machine
-  let cpuState = 'idle', cpuStateTimer = 0, cpuNextIdle = 900, cpuExtension = 0;
+  // second rig, tracked independently on its own auto-throw loop, right alongside the player's
+  let cpuState = 'idle', cpuStateTimer = 0, cpuNextIdle = 900, cpuExtension = 0, cpuJustScored = null;
 
-  // impact system: particles + a screen shake, fired only when gloves actually meet
+  // floating call tags that pop up over each rig's head on a scored rep, then fade
+  let playerTag = null, cpuTag = null; // { text, good, life }
+
+  // spark burst on a scored rep, at that rig's own glove, not on the other rig
   let particles = [];
-  let shakeTimer = 0, shakeMag = 0;
-  let playerHitCooldown = 0, cpuHitCooldown = 0;
-  let playerHitRecoil = 0, cpuHitRecoil = 0;
   let bobPhase = Math.random() * Math.PI * 2;
 
-  // footwork: smoothed step offsets so both fighters actually close and open
-  // the distance instead of standing on fixed marks all fight
-  let cpuStepX = 0, playerStepX = 0, playerExtensionPrev = 0;
+  // footwork: smoothed step offsets, small idle weave so neither rig stands dead still
+  let cpuStepX = 0, playerStepX = 0, playerExtension_ = 0;
 
   function solveIK(shoulder, target, l1, l2, bend){
     let dx = target.x - shoulder.x, dy = target.y - shoulder.y;
@@ -866,53 +866,39 @@
     joint(knee, width*0.7, color);
   }
 
-  function spawnImpact(x, y){
-    for(let i=0;i<16;i++){
+  // spark burst on a scored rep, right at that rig's own glove: green for a
+  // clean lock, amber for a flagged one — this is the "good jab vs bad jab" tell
+  function spawnRepSpark(x, y, good){
+    const n = good ? 14 : 9;
+    for(let i=0;i<n;i++){
       const ang = Math.random()*Math.PI*2;
-      const spd = 2 + Math.random()*5;
+      const spd = 1.5 + Math.random()*4;
       particles.push({
         x, y,
         vx: Math.cos(ang)*spd,
         vy: Math.sin(ang)*spd,
         life: 1,
-        color: Math.random() > 0.5 ? '#f2a93b' : '#eae6da'
-      });
-    }
-    shakeTimer = 1;
-    shakeMag = 10;
-  }
-
-  // a caught punch: a small flat spark on the glove, no head snap, no shake
-  function spawnBlock(x, y){
-    for(let i=0;i<7;i++){
-      const ang = Math.random()*Math.PI*2;
-      const spd = 1 + Math.random()*2.5;
-      particles.push({
-        x, y,
-        vx: Math.cos(ang)*spd,
-        vy: Math.sin(ang)*spd,
-        life: 0.7,
-        color: 'rgba(234,230,218,0.9)'
+        color: good ? (Math.random() > 0.5 ? '#35d69a' : '#eae6da') : '#f2a93b'
       });
     }
   }
 
-  // Draws one fighter. Both arms share the same two-bone rig, aimed at different
+  // Draws one tracked rig. Both arms share the same two-bone rig, aimed at different
   // targets, so a jab and a guard read as matched limbs, not a stub beside a full one.
   function drawFighter(opts){
-    const { anchorX, anchorY, mirror, scale, jabTarget, jabExtension, isLocked, isCpu, hitRecoil, bob } = opts;
+    const { anchorX, anchorY, mirror, scale, jabTarget, jabExtension, isLocked, isCpu, bob, label, tag } = opts;
     const armUpper = 100 * scale;
     const armFore = 95 * scale;
 
     const lean = mirror * -jabExtension * 10 * scale;   // lean the whole rig into the punch
-    const recoilX = -mirror * hitRecoil * 18 * scale;   // and snap it back off a landed hit
 
     const hip = { x: anchorX + lean*0.3, y: anchorY + 40*scale + bob };
-    const shoulderPt = { x: anchorX + lean + recoilX, y: anchorY - 90*scale + bob };
+    const shoulderPt = { x: anchorX + lean, y: anchorY - 90*scale + bob };
     const frontFoot = { x: anchorX + mirror*90*scale, y: anchorY + 220*scale };
     const backFoot = { x: anchorX - mirror*70*scale, y: anchorY + 230*scale };
 
     const boneColor = isCpu ? 'rgba(209,38,63,0.55)' : 'rgba(234,230,218,0.6)';
+    const trackColor = isCpu ? 'rgba(242,169,59,0.55)' : 'rgba(53,214,154,0.5)';
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
     drawLeg(hip, frontFoot, -mirror, scale, boneColor, 6*scale);
@@ -968,9 +954,8 @@
     joint(shoulderPt, 6*scale, boneColor);
     joint(hip, 6*scale, boneColor);
 
-    // head, snaps back the instant a hit lands
-    const headX = shoulderPt.x - mirror*hitRecoil*10*scale;
-    const headY = shoulderPt.y - 34*scale - hitRecoil*6*scale;
+    const headX = shoulderPt.x;
+    const headY = shoulderPt.y - 34*scale;
     ctx.beginPath();
     ctx.fillStyle = boneColor;
     ctx.arc(headX, headY, 20*scale, 0, Math.PI*2);
@@ -987,51 +972,77 @@
     joint(jabIK.wrist, gloveR, isLocked ? jabColor : '#eae6da');
     ctx.restore();
 
+    // computer-vision style keypoint markers, small crosshairs over the joints
+    // actually doing the tracking, so this reads as tracked footage, not a game sprite
+    const keypoints = [{x: headX, y: headY}, shoulderPt, hip, jabIK.elbow, jabIK.wrist, guardIK.wrist];
+    ctx.strokeStyle = trackColor;
+    ctx.lineWidth = 1;
+    keypoints.forEach(p => {
+      const r = 3.5 * scale;
+      ctx.beginPath();
+      ctx.moveTo(p.x - r, p.y); ctx.lineTo(p.x + r, p.y);
+      ctx.moveTo(p.x, p.y - r); ctx.lineTo(p.x, p.y + r);
+      ctx.stroke();
+    });
+
+    // dashed bounding box + id label, the "this is being tracked" tell
+    const boxTop = headY - 34*scale, boxBottom = anchorY + 232*scale;
+    const boxLeft = Math.min(frontFoot.x, backFoot.x, jabIK.wrist.x, guardIK.wrist.x) - 14*scale;
+    const boxRight = Math.max(frontFoot.x, backFoot.x, jabIK.wrist.x, guardIK.wrist.x) + 14*scale;
+    ctx.save();
+    ctx.strokeStyle = trackColor;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4*scale, 4*scale]);
+    ctx.strokeRect(boxLeft, boxTop, boxRight - boxLeft, boxBottom - boxTop);
+    ctx.restore();
+    ctx.font = `${10*scale}px 'IBM Plex Mono', monospace`;
+    ctx.fillStyle = trackColor;
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(label, boxLeft, boxTop - 4*scale);
+
+    // floating call tag, pops up over the head on a scored rep then fades
+    if(tag && tag.life > 0){
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, tag.life);
+      ctx.font = `${13*scale}px 'IBM Plex Mono', monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = tag.good ? '#35d69a' : '#f2a93b';
+      ctx.fillText(tag.text, headX, headY - 30*scale - (1-tag.life)*14*scale);
+      ctx.restore();
+    }
+
     return { shoulderPt, wrist: jabIK.wrist, head: { x: headX, y: headY } };
   }
+
 
   function draw(){
     const scale = Math.min(W,H) / 700;
     const armUpper = 100 * scale, armFore = 95 * scale;
     const reachMax = armUpper + armFore - 10;
 
-    // footwork targets, driven by what each fighter is doing right now: step in
-    // to attack, step back off getting tagged, small idle weave the rest of the time
-    const cpuStepTarget = (cpuState === 'extend' || cpuState === 'hold') ? 16*scale
-                         : (cpuState === 'stagger') ? -34*scale
-                         : Math.sin(bobPhase*0.7) * 4 * scale;
+    // footwork: a small idle weave plus a light forward shift while a jab is
+    // extending, natural throwing mechanics, not a step toward the other rig
+    const cpuStepTarget = cpuExtension * 10 * scale + Math.sin(bobPhase*0.7) * 4 * scale;
     cpuStepX += (cpuStepTarget - cpuStepX) * 0.09;
-    const playerStepTarget = playerHitRecoil > 0.3 ? -22*scale
-                            : (playerExtensionPrev > 0.75 ? 10*scale : Math.sin(bobPhase*0.7 + 2) * 4 * scale);
+    const playerStepTarget = playerExtension_ * 10 * scale + Math.sin(bobPhase*0.7 + 2) * 4 * scale;
     playerStepX += (playerStepTarget - playerStepX) * 0.1;
 
-    // anchors are set from the reach itself, not from a fixed screen fraction,
-    // so the two fighters can always actually close the distance and touch gloves
+    // anchors are set from the reach itself, not a fixed screen fraction, so
+    // both rigs have full room to throw without either one crowding the other
     const centerX = W * 0.60;
     const gap = reachMax * 1.55;
-    const playerAnchor = { x: centerX + gap/2 + playerStepX, y: H * 0.62 };
+    const playerAnchor = { x: centerX + gap/2 - playerStepX, y: H * 0.62 };
     const cpuAnchor = { x: centerX - gap/2 + cpuStepX, y: H * 0.60 };
-    const cpuHeadApprox = { x: cpuAnchor.x, y: cpuAnchor.y - 124*scale };
 
-    // screen shake, only kicks in off a real clash
-    let shakeX = 0, shakeY = 0;
-    if(shakeTimer > 0){
-      shakeTimer -= 0.06;
-      const m = Math.max(0, shakeTimer) * shakeMag * scale;
-      shakeX = (Math.random()-0.5) * m;
-      shakeY = (Math.random()-0.5) * m;
-    }
     ctx.save();
-    ctx.translate(shakeX, shakeY);
-    ctx.clearRect(-shakeX-6, -shakeY-6, W+12, H+12);
+    ctx.clearRect(0, 0, W, H);
 
-    // --- player target tracking ---
-    // the cursor steers the punch, but the punch is always thrown at the
-    // opponent's head, not wherever the cursor happens to sit on screen
+    // --- TRACK_01 (player): cursor steers the punch, thrown out in front of
+    // this rig's own stance, not at the other rig ---
     if(hasPointer){
       const lerp = reduceMotion ? 1 : 0.16;
-      const desiredX = cpuHeadApprox.x + (rawX - W/2) * 0.5;
-      const desiredY = cpuHeadApprox.y + (rawY - H/2) * 0.5;
+      const desiredX = playerAnchor.x - armUpper*0.6 + (rawX - W/2) * 0.35;
+      const desiredY = playerAnchor.y - armUpper*0.9 + (rawY - H/2) * 0.35;
       targetX += (desiredX - targetX) * lerp;
       targetY += (desiredY - targetY) * lerp;
     } else {
@@ -1047,6 +1058,7 @@
       tdist = reachMax;
     }
     const playerExtension = tdist / reachMax;
+    playerExtension_ = playerExtension;
     const playerExtended = hasPointer && playerExtension > 0.82;
 
     if(playerExtended){ lockTimer += 16; } else { lockTimer = 0; locked = false; }
@@ -1055,21 +1067,24 @@
       reps += 1;
       repCountEl.textContent = reps;
       const call = calls[Math.floor(Math.random()*calls.length)];
+      const good = call === 'CLEAN';
       lastCallEl.textContent = call;
-      lastCallEl.classList.toggle('bad', call !== 'CLEAN');
+      lastCallEl.classList.toggle('bad', !good);
+      playerTag = { text: call, good, life: 1 };
       flashTimer = 1;
     }
+    if(playerTag){
+      playerTag.life -= 0.012;
+      if(playerTag.life <= 0) playerTag = null;
+    }
 
-    // idle bounce so neither fighter stands dead still between exchanges
+    // idle bounce so neither rig stands dead still between reps
     bobPhase += 0.06;
     const playerBob = Math.sin(bobPhase) * 2.5 * scale;
     const cpuBob = Math.sin(bobPhase + 1.4) * 2.5 * scale;
 
-    // people aim for the face, not the hand: both fighters throw at where the
-    // other's head actually is, not at the glove chasing it around
-    const playerHead = { x: playerAnchor.x, y: playerAnchor.y - 124*scale + playerBob };
-
-    // --- CPU sparring loop: throws at the player's face ---
+    // --- TRACK_02: runs its own auto-throw loop, independent of the player,
+    // aimed out in front of its own stance like it's working a pad ---
     cpuStateTimer += 16;
     if(cpuState === 'idle' && cpuStateTimer > cpuNextIdle){
       cpuState = 'extend'; cpuStateTimer = 0;
@@ -1081,28 +1096,39 @@
       if(cpuStateTimer > 260){
         cpuReps += 1;
         cpuCountEl.textContent = cpuReps;
+        const call = calls[Math.floor(Math.random()*calls.length)];
+        const good = call === 'CLEAN';
+        cpuLastCallEl.textContent = call;
+        cpuLastCallEl.classList.toggle('bad', !good);
+        cpuTag = { text: call, good, life: 1 };
+        cpuJustScored = good;
         cpuState = 'retract'; cpuStateTimer = 0;
       }
     } else if(cpuState === 'retract'){
       cpuExtension = Math.max(0, 1 - cpuStateTimer/200);
       if(cpuStateTimer > 200){
-        cpuState = 'idle'; cpuStateTimer = 0; cpuNextIdle = 700 + Math.random()*1400;
-      }
-    } else if(cpuState === 'stagger'){
-      // knocked out of whatever it was doing, backs off before it throws again
-      cpuExtension = Math.max(0, cpuExtension - 0.15);
-      if(cpuStateTimer > 380){
-        cpuState = 'idle'; cpuStateTimer = 0; cpuNextIdle = 450 + Math.random()*850;
+        cpuState = 'idle'; cpuStateTimer = 0; cpuNextIdle = 900 + Math.random()*1500;
       }
     }
-    const cpuShoulder = { x: cpuAnchor.x, y: cpuAnchor.y - 90*scale };
-    let cdx = playerHead.x - cpuShoulder.x, cdy = playerHead.y - cpuShoulder.y;
-    let cdist = Math.hypot(cdx, cdy) || 0.001;
-    const reachFactor = 0.28 + 0.72 * cpuExtension;
+    if(cpuTag){
+      cpuTag.life -= 0.012;
+      if(cpuTag.life <= 0) cpuTag = null;
+    }
+    const cpuShoulder = { x: cpuAnchor.x, y: cpuAnchor.y - 90*scale + cpuBob };
+    const cpuReachFactor = 0.28 + 0.72 * cpuExtension;
     const cpuTarget = {
-      x: cpuShoulder.x + (cdx/cdist) * reachMax * reachFactor,
-      y: cpuShoulder.y + (cdy/cdist) * reachMax * reachFactor
+      x: cpuShoulder.x - armUpper*0.15 + reachMax * cpuReachFactor,
+      y: cpuShoulder.y - armUpper*0.55
     };
+    if(cpuJustScored !== null){
+      spawnRepSpark(cpuTarget.x, cpuTarget.y, cpuJustScored);
+      cpuJustScored = null;
+    }
+
+    // spark burst on the player's own glove, right when their rep locks
+    if(locked && lockTimer >= 550 && lockTimer < 566){
+      spawnRepSpark(playerTarget.x, playerTarget.y, playerTag ? playerTag.good : true);
+    }
 
     // ring floor line
     ctx.strokeStyle = 'rgba(234,230,218,0.08)';
@@ -1111,48 +1137,19 @@
     ctx.moveTo(0, H*0.86); ctx.lineTo(W, H*0.86);
     ctx.stroke();
 
-    if(playerHitRecoil > 0) playerHitRecoil = Math.max(0, playerHitRecoil - 0.08);
-    if(cpuHitRecoil > 0) cpuHitRecoil = Math.max(0, cpuHitRecoil - 0.08);
-
-    const cpuRig = drawFighter({
+    drawFighter({
       anchorX: cpuAnchor.x, anchorY: cpuAnchor.y, mirror: -1, scale,
       jabTarget: cpuTarget, jabExtension: cpuExtension,
       isLocked: cpuState === 'hold', isCpu: true,
-      hitRecoil: cpuHitRecoil, bob: cpuBob
+      bob: cpuBob, label: 'TRACK_02', tag: cpuTag
     });
 
-    const playerRig = drawFighter({
+    drawFighter({
       anchorX: playerAnchor.x, anchorY: playerAnchor.y, mirror: 1, scale,
       jabTarget: playerTarget, jabExtension: playerExtension,
       isLocked: locked, isCpu: false,
-      hitRecoil: playerHitRecoil, bob: playerBob
+      bob: playerBob, label: 'TRACK_01', tag: playerTag
     });
-
-    // a punch lands on the face, not on the opponent's glove: check each fighter's
-    // wrist against where the other one's head actually ended up this frame
-    playerHitCooldown = Math.max(0, playerHitCooldown - 16);
-    cpuHitCooldown = Math.max(0, cpuHitCooldown - 16);
-    const landThreshold = 33 * scale;
-
-    if(cpuHitCooldown === 0 && playerExtension > 0.55){
-      const d = Math.hypot(playerRig.wrist.x - cpuRig.head.x, playerRig.wrist.y - cpuRig.head.y);
-      if(d < landThreshold){
-        cpuHitCooldown = 420;
-        if(Math.random() < 0.3){ spawnBlock(cpuRig.head.x, cpuRig.head.y); }
-        else {
-          spawnImpact(cpuRig.head.x, cpuRig.head.y); cpuHitRecoil = 1;
-          cpuState = 'stagger'; cpuStateTimer = 0;
-        }
-      }
-    }
-    if(playerHitCooldown === 0 && cpuExtension > 0.55){
-      const d = Math.hypot(cpuRig.wrist.x - playerRig.head.x, cpuRig.wrist.y - playerRig.head.y);
-      if(d < landThreshold){
-        playerHitCooldown = 420;
-        if(Math.random() < 0.3){ spawnBlock(playerRig.head.x, playerRig.head.y); }
-        else { spawnImpact(playerRig.head.x, playerRig.head.y); playerHitRecoil = 1; }
-      }
-    }
 
     for(let i=particles.length-1;i>=0;i--){
       const p = particles[i];
@@ -1177,7 +1174,6 @@
     }
 
     ctx.restore();
-    playerExtensionPrev = playerExtension;
 
     if(flashTimer > 0){
       lockedFlash.style.opacity = Math.min(1, flashTimer);
