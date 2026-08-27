@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>[Your Company]: Form Intelligence Demo</title>
+<meta name="description" content="Custom computer-vision rep tracking and form correction for gyms and combat sport studios. No wearables. No templates.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0b0b0c">
+<style>
+  @font-face {
+    font-family: 'Bebas Neue';
+    src: local('Bebas Neue');
+  }
+  :root{
+    --bg: #0b0b0c;
+    --chalk: #eae6da;
+    --corner-red: #d1263f;
+    --lock-green: #35d69a;
+    --amber: #f2a93b;
+    --muted: #8a8a8f;
+    --panel: #141416;
+    --line: #232326;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--chalk);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Bebas Neue','Arial Narrow',sans-serif;
+    letter-spacing:0.02em;
+    font-weight:400;
+    line-height:0.95;
+    text-transform:uppercase;
+  }
+  .mono{
+    font-family:'IBM Plex Mono','Courier New',monospace;
+    letter-spacing:0.04em;
+  }
+  a{color:inherit;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px;}
+  section{padding:100px 0;}
+  @media(max-width:640px){ section{padding:64px 0;} }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    overflow:hidden;
+    border-bottom:1px solid var(--line);
+  }
+  #rig-canvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    cursor:crosshair;
+    touch-action:none;
+  }
+  .hero-top{
+    position:relative;
+    z-index:2;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:24px;
+    font-size:12px;
+  }
+  .brandtag{
+    font-family:'IBM Plex Mono',monospace;
+    letter-spacing:0.12em;
+    color:var(--muted);
+  }
+  .brandtag b{color:var(--chalk);}
+  .rep-readout{
+    font-family:'IBM Plex Mono',monospace;
+    text-align:right;
+    color:var(--muted);
+    line-height:1.5;
+  }
+  .rep-readout .rep-count{
+    color:var(--amber);
+    font-size:18px;
+  }
+  .rep-readout .call{
+    color:var(--lock-green);
+    transition:color 0.15s;
+  }
+  .rep-readout .call.bad{ color:var(--corner-red); }
+  .rep-readout .rep-count.cpu{ color:var(--corner-red); }
+
+  .hero-mid{
+    position:relative;
+    z-index:2;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:0 24px;
+    pointer-events:none;
+  }
+  .hero-mid h1{
+    font-size:clamp(48px, 9vw, 108px);
+    max-width:900px;
+  }
+  .hero-mid p{
+    max-width:520px;
+    color:var(--muted);
+    font-size:17px;
+    margin-top:20px;
+  }
+  .hero-bottom{
+    position:relative;
+    z-index:2;
+    text-align:center;
+    padding:20px 24px 32px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.1em;
+    color:var(--muted);
+  }
+  .hero-bottom .arrow{
+    display:block;
+    margin-bottom:8px;
+    animation:bob 1.6s ease-in-out infinite;
+  }
+  @keyframes bob{
+    0%,100%{transform:translateY(0);}
+    50%{transform:translateY(6px);}
+  }
+  .locked-flash{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:3;
+    pointer-events:none;
+    opacity:0;
+  }
+  .locked-flash h2{
+    font-size:clamp(56px, 14vw, 160px);
+    color:var(--lock-green);
+  }
+
+  /* ---------- STATS BAND ---------- */
+  .stats{
+    border-bottom:1px solid var(--line);
+    text-align:center;
+  }
+  .stats .num{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(64px,12vw,140px);
+    color:var(--lock-green);
+    line-height:1;
+  }
+  .stats .label{
+    max-width:480px;
+    margin:12px auto 0;
+    color:var(--chalk);
+    font-size:16px;
+  }
+  .stats .caption{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:var(--muted);
+    margin-top:16px;
+    text-transform:uppercase;
+  }
+
+  /* ---------- WHAT WE BUILD ---------- */
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:16px;
+  }
+  .build-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin:24px 0 32px;
+  }
+  .build-list span{
+    border:1px solid var(--line);
+    padding:10px 18px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    letter-spacing:0.06em;
+    border-radius:2px;
+  }
+  .lede{
+    max-width:640px;
+    color:var(--muted);
+    font-size:17px;
+  }
+  .lede b{color:var(--chalk);font-weight:600;}
+
+  /* ---------- DIFFERENCE CARDS ---------- */
+  .diff-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-top:40px;
+  }
+  @media(max-width:720px){ .diff-grid{grid-template-columns:1fr;} }
+  .diff-card{
+    background:var(--bg);
+    padding:40px;
+  }
+  .diff-card h3{
+    font-size:26px;
+    color:var(--lock-green);
+    margin-bottom:12px;
+  }
+  .diff-card p{ color:var(--muted); font-size:15px; }
+
+  /* ---------- CASE FILES ---------- */
+  .case-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-top:40px;
+  }
+  @media(max-width:900px){ .case-grid{grid-template-columns:repeat(2,1fr);} }
+  .case-card{
+    background:var(--bg);
+    padding:28px 24px;
+  }
+  .case-card .tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.1em;
+    color:var(--lock-green);
+    text-transform:uppercase;
+  }
+  .case-card h4{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:24px;
+    margin:10px 0 8px;
+  }
+  .case-card p{ color:var(--muted); font-size:14px; }
+
+  /* ---------- PHOTO SLOTS (drop your generated images in) ---------- */
+  .photo-slot{
+    position:relative;
+    width:100%;
+    aspect-ratio:4/3;
+    margin-bottom:14px;
+    border-radius:2px;
+    overflow:hidden;
+    background:var(--panel);
+  }
+  .photo-slot img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .photo-placeholder{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px;
+    border:1px dashed var(--line);
+    background:var(--panel);
+    color:var(--muted);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    text-align:center;
+    padding:10px;
+  }
+  .photo-placeholder b{ color:var(--chalk); display:block; font-size:12px; margin-bottom:2px; }
+  .avatar-slot{
+    width:64px; height:64px;
+    border-radius:50%;
+    margin:0 auto 20px;
+    position:relative;
+    overflow:hidden;
+    background:var(--panel);
+  }
+  .avatar-slot img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .avatar-slot .photo-placeholder{ border-radius:50%; font-size:8px; padding:4px; }
+
+  /* ---------- PROCESS ---------- */
+  .stage-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:32px;
+    margin-top:40px;
+  }
+  @media(max-width:820px){ .stage-row{grid-template-columns:1fr 1fr;} }
+  @media(max-width:500px){ .stage-row{grid-template-columns:1fr;} }
+  .stage{
+    border-top:2px solid var(--corner-red);
+    padding-top:16px;
+  }
+  .stage .num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.1em;
+  }
+  .stage h4{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:24px;
+    margin:8px 0 8px;
+  }
+  .stage p{ color:var(--muted); font-size:14px; }
+
+  /* ---------- PRICING ---------- */
+  .price-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-top:40px;
+  }
+  @media(max-width:1000px){ .price-grid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:560px){ .price-grid{grid-template-columns:1fr;} }
+  .price-card{
+    background:var(--bg);
+    padding:32px 22px;
+    display:flex;
+    flex-direction:column;
+  }
+  .price-card.featured{ box-shadow: inset 0 3px 0 var(--lock-green); }
+  .price-card .tier-badge{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.1em;
+    color:var(--lock-green);
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .price-card .tier-num{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--corner-red);
+    font-size:11px;
+    letter-spacing:0.12em;
+  }
+  .price-card h4{ font-size:26px; margin:10px 0 4px; }
+  .price-card .price-row{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    color:var(--amber);
+    margin-bottom:16px;
+  }
+  .price-card .price-row .monthly{ color:var(--lock-green); display:block; margin-top:2px; }
+  .price-card ul{ list-style:none; margin-top:auto; padding-top:12px; border-top:1px solid var(--line); }
+  .price-card li{ color:var(--muted); font-size:13px; padding:4px 0 4px 14px; position:relative; }
+  .price-card li::before{ content:'+'; position:absolute; left:0; color:var(--lock-green); }
+
+  /* ---------- TESTIMONIAL ---------- */
+  .testimonial{
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    text-align:center;
+  }
+  .testimonial .caption{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    margin-bottom:24px;
+  }
+  .testimonial blockquote{
+    font-size:clamp(22px,3.4vw,32px);
+    max-width:760px;
+    margin:0 auto;
+    color:var(--chalk);
+    font-style:normal;
+  }
+  .testimonial cite{
+    display:block;
+    margin-top:24px;
+    font-style:normal;
+    color:var(--muted);
+    font-size:14px;
+  }
+
+  /* ---------- CTA ---------- */
+  .cta{ text-align:center; }
+  .cta h2{ font-size:clamp(36px,6vw,64px); max-width:700px; margin:0 auto; }
+  .cta p{ color:var(--muted); max-width:480px; margin:20px auto 32px; }
+  .btn{
+    display:inline-block;
+    background:var(--lock-green);
+    color:var(--bg);
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:700;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    font-size:13px;
+    padding:16px 32px;
+    border-radius:2px;
+    text-decoration:none;
+    transition:transform 0.15s ease;
+  }
+  .btn:hover{ transform:translateY(-2px); }
+  .btn.ghost{
+    background:transparent;
+    border:1px solid var(--chalk);
+    color:var(--chalk);
+    margin-left:12px;
+  }
+
+  /* ---------- ABOUT THIS BUILD ---------- */
+  .about{ border-top:1px solid var(--line); }
+  .about .eyebrow{ color:var(--corner-red); }
+  .about-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:40px 48px;
+    margin-top:40px;
+  }
+  @media(max-width:720px){ .about-grid{grid-template-columns:1fr;} }
+  .about-item .num{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--amber);
+    font-size:12px;
+  }
+  .about-item h3{ font-size:24px; margin:8px 0 8px; }
+  .about-item p{ color:var(--muted); font-size:15px; }
+  .about-link{
+    margin-top:48px;
+    padding-top:32px;
+    border-top:1px solid var(--line);
+    font-size:18px;
+  }
+  .about-link a{ color:var(--lock-green); text-decoration:none; }
+  .about-link a:hover{ text-decoration:underline; }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    padding:40px 24px;
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:var(--muted);
+  }
+  footer a{ color:var(--chalk); text-decoration:none; }
+  footer a:hover{ text-decoration:underline; }
+  footer .built-by{ margin-top:8px; color:var(--muted); }
+
+  .reveal{
+    opacity:0;
+    transform:translateY(24px);
+    transition:opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.in{
+    opacity:1;
+    transform:translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<section class="hero" id="hero">
+  <canvas id="rig-canvas"></canvas>
+
+  <div class="hero-top">
+    <div class="brandtag">[YOUR BRAND] <b>//</b> MAT-01 <b>//</b> FORM DEMO</div>
+    <div class="rep-readout mono">
+      YOU <span class="rep-count" id="repCount">0</span> &nbsp;&nbsp; CPU <span class="rep-count cpu" id="cpuCount">0</span><br>
+      LAST CALL: <span class="call" id="lastCall">STANDBY</span>
+    </div>
+  </div>
+
+  <div class="hero-mid">
+    <h1>It doesn't just count reps.<br>It corrects them.</h1>
+    <p>Move your cursor to throw a jab. The rig tracks the reach, locks the angle, and calls it clean or calls it wrong. That's the read your fighters get on every single rep, not just the ones a coach happened to be watching.</p>
+  </div>
+
+  <div class="hero-bottom">
+    <span class="arrow">&#9660;&#9660;&#9660;</span>
+    MOVE TO THROW &middot; HOLD THE LOCK TO SCORE IT &middot; CPU'S THROWING BACK (TAP AND HOLD ON MOBILE)
+  </div>
+
+  <div class="locked-flash" id="lockedFlash">
+    <h2>YOU'RE LOCKED IN.</h2>
+  </div>
+</section>
+
+<section class="stats reveal">
+  <div class="wrap">
+    <div class="num">0.4s</div>
+    <p class="label">average time from a bad rep to a correction cue, measured start of movement to cue delivery.</p>
+    <p class="caption">Sample data / swap for your own results</p>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">What we build</div>
+    <div class="build-list">
+      <span>LIVE REP TRACKING</span>
+      <span>FORM CORRECTION CUES</span>
+      <span>INJURY RISK FLAGS</span>
+      <span>COACH DASHBOARD</span>
+    </div>
+    <p class="lede">Runs on the cameras already bolted to your ceiling. <b>Nothing rented, nothing your members have to download.</b> While the big chains are still handing out laminated poster instructions, your rig is correcting form before the rep even finishes.</p>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">The [Your Brand] difference</div>
+    <div class="diff-grid">
+      <div class="diff-card">
+        <h3>You own the footage</h3>
+        <p>Your own hosting, your own data, your own members' privacy. Walk away tomorrow and the rig keeps running. Try that with a subscription camera.</p>
+      </div>
+      <div class="diff-card">
+        <h3>Built, not bolted on</h3>
+        <p>No wearable to charge, no app for members to install. Real computer vision, tuned to your floor, not a wristband taking its best guess.</p>
+      </div>
+      <div class="diff-card">
+        <h3>One rig, every station</h3>
+        <p>Camera, dashboard and coach alerts all talk to each other because one team built all of them, on purpose, together.</p>
+      </div>
+      <div class="diff-card">
+        <h3>Corrects in the moment</h3>
+        <p>Not a report your members read three days later. The cue fires mid-set, while it can still change the next rep.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">Recent jobs</div>
+    <p class="lede">Live, in use, and built from scratch. Not mockups. Not templates. Not someone else's plugin held together with hope.</p>
+    <div class="case-grid">
+      <div class="case-card">
+        <div class="photo-slot">
+          <img src="images/case-digz.jpg" alt="Digz N' Lidz" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/case-digz.jpg</div>
+        </div>
+        <div class="tag">Live</div>
+        <h4>Digz N' Lidz</h4>
+        <p>RC experience cafe. Online bookings, QR walk-ins and table ordering, all in one system.</p>
+      </div>
+      <div class="case-card">
+        <div class="photo-slot">
+          <img src="images/case-rubies.jpg" alt="Rubies and Pearls" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/case-rubies.jpg</div>
+        </div>
+        <div class="tag">Live</div>
+        <h4>Rubies &amp; Pearls</h4>
+        <p>One-of-one antique jewellery. Shop, checkout and stock manager built from scratch.</p>
+      </div>
+      <div class="case-card">
+        <div class="photo-slot">
+          <img src="images/case-watag.jpg" alt="WATAG" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/case-watag.jpg</div>
+        </div>
+        <div class="tag">Live</div>
+        <h4>WATAG</h4>
+        <p>Tattoo studio loyalty app with stamp cards, referrals and artist booking.</p>
+      </div>
+      <div class="case-card">
+        <div class="photo-slot">
+          <img src="images/case-candymonium.jpg" alt="Candymonium" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/case-candymonium.jpg</div>
+        </div>
+        <div class="tag">Live</div>
+        <h4>Candymonium</h4>
+        <p>Pick and mix sweet shop with Stripe checkout and allergen filtering.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">From site survey to live rig</div>
+    <p class="lede">Every install, whether a single mat or a full multi-room studio, follows the same four stages.</p>
+    <div class="stage-row">
+      <div class="stage">
+        <div class="num mono">STAGE 01</div>
+        <h4>Assess</h4>
+        <p>We walk the floor, map camera angles and lighting before writing a line of code.</p>
+      </div>
+      <div class="stage">
+        <div class="num mono">STAGE 02</div>
+        <h4>Calibrate</h4>
+        <p>The rig gets tuned to your members' movements and the corrections your coaches actually want called out.</p>
+      </div>
+      <div class="stage">
+        <div class="num mono">STAGE 03</div>
+        <h4>Install</h4>
+        <p>Cameras go up, dashboard goes live, coaches get a walkthrough on day one.</p>
+      </div>
+      <div class="stage">
+        <div class="num mono">STAGE 04</div>
+        <h4>Coach access</h4>
+        <p>Ongoing dashboard access, with cues your coaches can edit as your programming changes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">Pricing</div>
+    <p class="lede">Five tiers, same build quality all the way through. Start at the front door, go as deep as your floor needs, upgrade whenever you're ready.</p>
+    <div class="price-grid">
+      <div class="price-card">
+        <div class="tier-num">TIER 01</div>
+        <h4>Front Door</h4>
+        <div class="photo-slot">
+          <img src="images/tier-1-front-door.jpg" alt="Front Door setup" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/tier-1-front-door.jpg</div>
+        </div>
+        <div class="price-row">Build £150 to £300<span class="monthly">£10 / month</span></div>
+        <ul>
+          <li>Custom site</li>
+          <li>Class timetable</li>
+          <li>Location and contact</li>
+          <li>Reviews embed</li>
+        </ul>
+      </div>
+      <div class="price-card">
+        <div class="tier-num">TIER 02</div>
+        <h4>Booked Up</h4>
+        <div class="photo-slot">
+          <img src="images/tier-2-booked-up.jpg" alt="Booked Up setup" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/tier-2-booked-up.jpg</div>
+        </div>
+        <div class="price-row">Build £600 to £900<span class="monthly">£20 / month</span></div>
+        <ul>
+          <li>Class and session booking</li>
+          <li>Deposits and reminders</li>
+          <li>Coach calendar</li>
+        </ul>
+      </div>
+      <div class="price-card">
+        <div class="tier-num">TIER 03</div>
+        <h4>Loyalty Rig</h4>
+        <div class="photo-slot">
+          <img src="images/tier-3-loyalty-rig.jpg" alt="Loyalty Rig setup" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/tier-3-loyalty-rig.jpg</div>
+        </div>
+        <div class="price-row">Build £2,000 to £2,800<span class="monthly">£35 / month</span></div>
+        <ul>
+          <li>Membership loyalty cards</li>
+          <li>Referrals, WATAG style</li>
+          <li>Stripe checkout</li>
+          <li>Member dashboard</li>
+        </ul>
+      </div>
+      <div class="price-card">
+        <div class="tier-num">TIER 04</div>
+        <h4>Smart Floor</h4>
+        <div class="photo-slot">
+          <img src="images/tier-4-smart-floor.jpg" alt="Smart Floor setup" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/tier-4-smart-floor.jpg</div>
+        </div>
+        <div class="price-row">Build £4,500 to £6,000<span class="monthly">£50 / month</span></div>
+        <ul>
+          <li>QR check-in leaderboard</li>
+          <li>Streak tracking</li>
+          <li>Live scoreboard on the wall</li>
+        </ul>
+      </div>
+      <div class="price-card featured">
+        <div class="tier-badge">This demo</div>
+        <div class="tier-num">TIER 05</div>
+        <h4>Full Floor / AI Coach</h4>
+        <div class="photo-slot">
+          <img src="images/tier-5-full-floor.jpg" alt="Full Floor AI Coach setup" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="photo-placeholder"><b>Photo</b>images/tier-5-full-floor.jpg</div>
+        </div>
+        <div class="price-row">From £10,000, custom quote<span class="monthly">£75+ / month</span></div>
+        <ul>
+          <li>The camera rig itself</li>
+          <li>Site survey, install, calibration</li>
+          <li>Everything above, made real</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="testimonial reveal">
+  <div class="wrap">
+    <div class="avatar-slot">
+      <img src="images/testimonial-coach.jpg" alt="Head coach" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div class="photo-placeholder"><b>Photo</b></div>
+    </div>
+    <p class="caption">Sample testimonial / swap for your own</p>
+    <blockquote>"We stopped correcting the same mistake every single class. The rig catches it before I even turn around."</blockquote>
+    <cite>Head coach, independent gym (name withheld, sample quote)</cite>
+  </div>
+</section>
+
+<section class="cta reveal">
+  <div class="wrap">
+    <h2>Get a floor assessment</h2>
+    <p>For gym owners and coaches. No commitment, just a look at what the cameras you've already got could be doing.</p>
+    <a href="https://www.getsidedoor.co.uk/contact.html" class="btn">Request assessment</a>
+  </div>
+</section>
+
+<section class="about reveal">
+  <div class="wrap">
+    <div class="eyebrow">About this build</div>
+    <h2 style="font-size:clamp(30px,5vw,48px);max-width:700px;">Why partner with Sidedoor Digital</h2>
+    <p class="lede" style="margin-top:16px;">Everything above, the tracking rig, the jab lock, the live rep counter, the whole interaction, was built end to end by one studio, not assembled from a stock template. That's what a Sidedoor build gets you: a demo that actually demonstrates your product, instead of a page that just describes it.</p>
+    <div class="about-grid">
+      <div class="about-item">
+        <div class="num">01</div>
+        <h3>Interactive, not templated</h3>
+        <p>Every joint, lock and cue on this page is custom-built for the brief. No stock hero video, no theme file, a real tracking rig your visitors can move their own cursor through.</p>
+      </div>
+      <div class="about-item">
+        <div class="num">02</div>
+        <h3>Built to convert</h3>
+        <p>The interaction doesn't explain the product, it puts the visitor through the exact moment their members would feel, before you've said a word of sales copy.</p>
+      </div>
+      <div class="about-item">
+        <div class="num">03</div>
+        <h3>One team, one build</h3>
+        <p>Design, motion, tracking logic and development sit under one roof. No handoffs between agencies, no waiting on three vendors to sync.</p>
+      </div>
+      <div class="about-item">
+        <div class="num">04</div>
+        <h3>White-label ready</h3>
+        <p>This exact mechanic can be re-skinned for any gym, studio or franchise. Build once, brand many times.</p>
+      </div>
+    </div>
+    <div class="about-link">
+      <a href="https://www.getsidedoor.co.uk">Visit getsidedoor.co.uk &rarr;</a>
+      <span style="color:var(--muted);"> See more builds, or get a quote for your own interactive demo.</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>[YOUR BRAND] FORM INTELLIGENCE / &copy; 2026</div>
+  <div class="built-by">BUILT BY <a href="https://www.getsidedoor.co.uk">SIDEDOOR DIGITAL</a></div>
+</footer>
+
+<script>
+(function(){
+  const canvas = document.getElementById('rig-canvas');
+  const ctx = canvas.getContext('2d');
+  const hero = document.getElementById('hero');
+  const repCountEl = document.getElementById('repCount');
+  const cpuCountEl = document.getElementById('cpuCount');
+  const lastCallEl = document.getElementById('lastCall');
+  const lockedFlash = document.getElementById('lockedFlash');
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+  function resize(){
+    W = hero.clientWidth;
+    H = hero.clientHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // pointer target, smoothed
+  let rawX = null, rawY = null;
+  let targetX = 0, targetY = 0;
+  let hasPointer = false;
+
+  function setPointer(x, y){
+    const rect = canvas.getBoundingClientRect();
+    rawX = x - rect.left;
+    rawY = y - rect.top;
+    hasPointer = true;
+  }
+
+  canvas.addEventListener('mousemove', e => setPointer(e.clientX, e.clientY));
+  canvas.addEventListener('touchmove', e => {
+    if(e.touches[0]){ setPointer(e.touches[0].clientX, e.touches[0].clientY); }
+    e.preventDefault();
+  }, {passive:false});
+  canvas.addEventListener('touchstart', e => {
+    if(e.touches[0]){ setPointer(e.touches[0].clientX, e.touches[0].clientY); }
+  }, {passive:true});
+
+  let reps = 0, cpuReps = 0;
+  let lockTimer = 0, locked = false, flashTimer = 0;
+  const calls = ['CLEAN','CLEAN','CLEAN','ELBOW FLARE','DROP YOUR GUARD','OVEREXTENDED','CLEAN'];
+
+  // CPU sparring partner state machine
+  let cpuState = 'idle', cpuStateTimer = 0, cpuNextIdle = 900, cpuExtension = 0;
+
+  // impact system: particles + a screen shake, fired only when gloves actually meet
+  let particles = [];
+  let shakeTimer = 0, shakeMag = 0;
+  let playerHitCooldown = 0, cpuHitCooldown = 0;
+  let playerHitRecoil = 0, cpuHitRecoil = 0;
+  let bobPhase = Math.random() * Math.PI * 2;
+
+  function solveIK(shoulder, target, l1, l2, bend){
+    let dx = target.x - shoulder.x, dy = target.y - shoulder.y;
+    let dist = Math.hypot(dx, dy) || 0.001;
+    const maxD = l1 + l2 - 1;
+    const minD = Math.abs(l1 - l2) + 1;
+    dist = Math.max(minD, Math.min(maxD, dist));
+    const a1 = Math.atan2(dy, dx);
+    const cosA2 = (l1*l1 + dist*dist - l2*l2) / (2*l1*dist);
+    const a2 = Math.acos(Math.max(-1, Math.min(1, cosA2)));
+    const shoulderAngle = a1 + bend * a2;
+    const elbow = {
+      x: shoulder.x + l1 * Math.cos(shoulderAngle),
+      y: shoulder.y + l1 * Math.sin(shoulderAngle)
+    };
+    const toTarget = Math.atan2(target.y - elbow.y, target.x - elbow.x);
+    const wrist = {
+      x: elbow.x + l2 * Math.cos(toTarget),
+      y: elbow.y + l2 * Math.sin(toTarget)
+    };
+    return { elbow, wrist };
+  }
+
+  function joint(p, r, color){
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // simple bent leg so the stance reads as weight on two knees, not two pins
+  function drawLeg(hip, foot, bendSign, scale, color, width){
+    const mx = (hip.x + foot.x) / 2, my = (hip.y + foot.y) / 2;
+    const knee = { x: mx + bendSign * 14 * scale, y: my - 6 * scale };
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(hip.x, hip.y);
+    ctx.lineTo(knee.x, knee.y);
+    ctx.lineTo(foot.x, foot.y);
+    ctx.stroke();
+    joint(knee, width*0.7, color);
+  }
+
+  function spawnImpact(x, y){
+    for(let i=0;i<16;i++){
+      const ang = Math.random()*Math.PI*2;
+      const spd = 2 + Math.random()*5;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd,
+        life: 1,
+        color: Math.random() > 0.5 ? '#f2a93b' : '#eae6da'
+      });
+    }
+    shakeTimer = 1;
+    shakeMag = 10;
+  }
+
+  // a caught punch: a small flat spark on the glove, no head snap, no shake
+  function spawnBlock(x, y){
+    for(let i=0;i<7;i++){
+      const ang = Math.random()*Math.PI*2;
+      const spd = 1 + Math.random()*2.5;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd,
+        life: 0.7,
+        color: 'rgba(234,230,218,0.9)'
+      });
+    }
+  }
+
+  // Draws one fighter. Both arms share the same two-bone rig, aimed at different
+  // targets, so a jab and a guard read as matched limbs, not a stub beside a full one.
+  function drawFighter(opts){
+    const { anchorX, anchorY, mirror, scale, jabTarget, jabExtension, isLocked, isCpu, hitRecoil, bob } = opts;
+    const armUpper = 100 * scale;
+    const armFore = 95 * scale;
+
+    const lean = mirror * -jabExtension * 10 * scale;   // lean the whole rig into the punch
+    const recoilX = -mirror * hitRecoil * 18 * scale;   // and snap it back off a landed hit
+
+    const hip = { x: anchorX + lean*0.3, y: anchorY + 40*scale + bob };
+    const shoulderPt = { x: anchorX + lean + recoilX, y: anchorY - 90*scale + bob };
+    const frontFoot = { x: anchorX + mirror*90*scale, y: anchorY + 220*scale };
+    const backFoot = { x: anchorX - mirror*70*scale, y: anchorY + 230*scale };
+
+    const boneColor = isCpu ? 'rgba(209,38,63,0.55)' : 'rgba(234,230,218,0.6)';
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+    drawLeg(hip, frontFoot, -mirror, scale, boneColor, 6*scale);
+    drawLeg(hip, backFoot, mirror, scale, boneColor, 6*scale);
+
+    ctx.strokeStyle = boneColor;
+    ctx.lineWidth = 6.5 * scale;
+    ctx.beginPath();
+    ctx.moveTo(hip.x, hip.y); ctx.lineTo(shoulderPt.x, shoulderPt.y);
+    ctx.stroke();
+
+    // guard arm: same bone lengths as the jab arm, folded up toward the chin
+    const guardTarget = { x: shoulderPt.x - mirror*35*scale, y: shoulderPt.y - 55*scale };
+    const guardIK = solveIK(shoulderPt, guardTarget, armUpper, armFore, mirror);
+    ctx.strokeStyle = boneColor;
+    ctx.lineWidth = 6.5 * scale;
+    ctx.beginPath();
+    ctx.moveTo(shoulderPt.x, shoulderPt.y);
+    ctx.lineTo(guardIK.elbow.x, guardIK.elbow.y);
+    ctx.lineTo(guardIK.wrist.x, guardIK.wrist.y);
+    ctx.stroke();
+    joint(guardIK.elbow, 5*scale, boneColor);
+    joint(guardIK.wrist, 7*scale, boneColor);
+
+    // jab arm, same bone lengths, reaching toward the live target
+    const jabIK = solveIK(shoulderPt, jabTarget, armUpper, armFore, -mirror);
+    const jabColor = isLocked
+      ? (isCpu ? '#d1263f' : '#35d69a')
+      : (jabExtension > 0.82 ? '#f2a93b' : boneColor);
+
+    // faint motion trail on a live jab, sells the speed of the punch
+    if(jabExtension > 0.3){
+      ctx.strokeStyle = isCpu ? 'rgba(209,38,63,0.18)' : 'rgba(234,230,218,0.16)';
+      ctx.lineWidth = 10 * scale;
+      ctx.beginPath();
+      ctx.moveTo(shoulderPt.x, shoulderPt.y);
+      ctx.lineTo(
+        jabIK.wrist.x - (jabIK.wrist.x - shoulderPt.x)*0.15,
+        jabIK.wrist.y - (jabIK.wrist.y - shoulderPt.y)*0.15
+      );
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = jabColor;
+    ctx.lineWidth = 7 * scale;
+    ctx.beginPath();
+    ctx.moveTo(shoulderPt.x, shoulderPt.y);
+    ctx.lineTo(jabIK.elbow.x, jabIK.elbow.y);
+    ctx.lineTo(jabIK.wrist.x, jabIK.wrist.y);
+    ctx.stroke();
+    joint(jabIK.elbow, 5*scale, boneColor);
+
+    joint(shoulderPt, 6*scale, boneColor);
+    joint(hip, 6*scale, boneColor);
+
+    // head, snaps back the instant a hit lands
+    const headX = shoulderPt.x - mirror*hitRecoil*10*scale;
+    const headY = shoulderPt.y - 34*scale - hitRecoil*6*scale;
+    ctx.beginPath();
+    ctx.fillStyle = boneColor;
+    ctx.arc(headX, headY, 20*scale, 0, Math.PI*2);
+    ctx.fill();
+
+    // glove
+    const glow = isLocked ? 1 : Math.min(1, jabExtension);
+    const gloveR = (10 + glow*4) * scale;
+    ctx.save();
+    ctx.shadowColor = isLocked
+      ? (isCpu ? 'rgba(209,38,63,0.9)' : 'rgba(53,214,154,0.9)')
+      : 'rgba(242,169,59,0.5)';
+    ctx.shadowBlur = (isLocked ? 24 : 8*glow) * scale;
+    joint(jabIK.wrist, gloveR, isLocked ? jabColor : '#eae6da');
+    ctx.restore();
+
+    return { shoulderPt, wrist: jabIK.wrist, head: { x: headX, y: headY } };
+  }
+
+  function draw(){
+    const scale = Math.min(W,H) / 700;
+    const armUpper = 100 * scale, armFore = 95 * scale;
+    const reachMax = armUpper + armFore - 10;
+
+    // anchors are set from the reach itself, not from a fixed screen fraction,
+    // so the two fighters can always actually close the distance and touch gloves
+    const centerX = W * 0.60;
+    const gap = reachMax * 1.55;
+    const playerAnchor = { x: centerX + gap/2, y: H * 0.62 };
+    const cpuAnchor = { x: centerX - gap/2, y: H * 0.60 };
+
+    // screen shake, only kicks in off a real clash
+    let shakeX = 0, shakeY = 0;
+    if(shakeTimer > 0){
+      shakeTimer -= 0.06;
+      const m = Math.max(0, shakeTimer) * shakeMag * scale;
+      shakeX = (Math.random()-0.5) * m;
+      shakeY = (Math.random()-0.5) * m;
+    }
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+    ctx.clearRect(-shakeX-6, -shakeY-6, W+12, H+12);
+
+    // --- player target tracking ---
+    if(hasPointer){
+      const lerp = reduceMotion ? 1 : 0.16;
+      targetX += (rawX - targetX) * lerp;
+      targetY += (rawY - targetY) * lerp;
+    } else {
+      const t = Date.now() / 1400;
+      targetX = playerAnchor.x - armUpper*0.7 + Math.sin(t) * 14 * scale;
+      targetY = playerAnchor.y - armUpper*0.6 + Math.cos(t*0.8) * 10 * scale;
+    }
+    let tdx = targetX - playerAnchor.x, tdy = targetY - playerAnchor.y;
+    let tdist = Math.hypot(tdx, tdy) || 0.001;
+    let playerTarget = { x: targetX, y: targetY };
+    if(tdist > reachMax){
+      playerTarget = { x: playerAnchor.x + (tdx/tdist)*reachMax, y: playerAnchor.y + (tdy/tdist)*reachMax };
+      tdist = reachMax;
+    }
+    const playerExtension = tdist / reachMax;
+    const playerExtended = hasPointer && playerExtension > 0.82;
+
+    if(playerExtended){ lockTimer += 16; } else { lockTimer = 0; locked = false; }
+    if(lockTimer > 550 && !locked){
+      locked = true;
+      reps += 1;
+      repCountEl.textContent = reps;
+      const call = calls[Math.floor(Math.random()*calls.length)];
+      lastCallEl.textContent = call;
+      lastCallEl.classList.toggle('bad', call !== 'CLEAN');
+      flashTimer = 1;
+    }
+
+    // idle bounce so neither fighter stands dead still between exchanges
+    bobPhase += 0.06;
+    const playerBob = Math.sin(bobPhase) * 2.5 * scale;
+    const cpuBob = Math.sin(bobPhase + 1.4) * 2.5 * scale;
+
+    // people aim for the face, not the hand: both fighters throw at where the
+    // other's head actually is, not at the glove chasing it around
+    const playerHead = { x: playerAnchor.x, y: playerAnchor.y - 124*scale + playerBob };
+
+    // --- CPU sparring loop: throws at the player's face ---
+    cpuStateTimer += 16;
+    if(cpuState === 'idle' && cpuStateTimer > cpuNextIdle){
+      cpuState = 'extend'; cpuStateTimer = 0;
+    } else if(cpuState === 'extend'){
+      cpuExtension = Math.min(1, cpuStateTimer / 160);
+      if(cpuStateTimer > 160){ cpuState = 'hold'; cpuStateTimer = 0; }
+    } else if(cpuState === 'hold'){
+      cpuExtension = 1;
+      if(cpuStateTimer > 260){
+        cpuReps += 1;
+        cpuCountEl.textContent = cpuReps;
+        cpuState = 'retract'; cpuStateTimer = 0;
+      }
+    } else if(cpuState === 'retract'){
+      cpuExtension = Math.max(0, 1 - cpuStateTimer/200);
+      if(cpuStateTimer > 200){
+        cpuState = 'idle'; cpuStateTimer = 0; cpuNextIdle = 700 + Math.random()*1400;
+      }
+    }
+    const cpuShoulder = { x: cpuAnchor.x, y: cpuAnchor.y - 90*scale };
+    let cdx = playerHead.x - cpuShoulder.x, cdy = playerHead.y - cpuShoulder.y;
+    let cdist = Math.hypot(cdx, cdy) || 0.001;
+    const reachFactor = 0.28 + 0.72 * cpuExtension;
+    const cpuTarget = {
+      x: cpuShoulder.x + (cdx/cdist) * reachMax * reachFactor,
+      y: cpuShoulder.y + (cdy/cdist) * reachMax * reachFactor
+    };
+
+    // ring floor line
+    ctx.strokeStyle = 'rgba(234,230,218,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, H*0.86); ctx.lineTo(W, H*0.86);
+    ctx.stroke();
+
+    if(playerHitRecoil > 0) playerHitRecoil = Math.max(0, playerHitRecoil - 0.08);
+    if(cpuHitRecoil > 0) cpuHitRecoil = Math.max(0, cpuHitRecoil - 0.08);
+
+    const cpuRig = drawFighter({
+      anchorX: cpuAnchor.x, anchorY: cpuAnchor.y, mirror: -1, scale,
+      jabTarget: cpuTarget, jabExtension: cpuExtension,
+      isLocked: cpuState === 'hold', isCpu: true,
+      hitRecoil: cpuHitRecoil, bob: cpuBob
+    });
+
+    const playerRig = drawFighter({
+      anchorX: playerAnchor.x, anchorY: playerAnchor.y, mirror: 1, scale,
+      jabTarget: playerTarget, jabExtension: playerExtension,
+      isLocked: locked, isCpu: false,
+      hitRecoil: playerHitRecoil, bob: playerBob
+    });
+
+    // a punch lands on the face, not on the opponent's glove: check each fighter's
+    // wrist against where the other one's head actually ended up this frame
+    playerHitCooldown = Math.max(0, playerHitCooldown - 16);
+    cpuHitCooldown = Math.max(0, cpuHitCooldown - 16);
+    const landThreshold = 33 * scale;
+
+    if(cpuHitCooldown === 0 && playerExtension > 0.55){
+      const d = Math.hypot(playerRig.wrist.x - cpuRig.head.x, playerRig.wrist.y - cpuRig.head.y);
+      if(d < landThreshold){
+        cpuHitCooldown = 420;
+        if(Math.random() < 0.3){ spawnBlock(cpuRig.head.x, cpuRig.head.y); }
+        else { spawnImpact(cpuRig.head.x, cpuRig.head.y); cpuHitRecoil = 1; }
+      }
+    }
+    if(playerHitCooldown === 0 && cpuExtension > 0.55){
+      const d = Math.hypot(cpuRig.wrist.x - playerRig.head.x, cpuRig.wrist.y - playerRig.head.y);
+      if(d < landThreshold){
+        playerHitCooldown = 420;
+        if(Math.random() < 0.3){ spawnBlock(playerRig.head.x, playerRig.head.y); }
+        else { spawnImpact(playerRig.head.x, playerRig.head.y); playerHitRecoil = 1; }
+      }
+    }
+
+    for(let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vx *= 0.9; p.vy *= 0.9; p.life -= 0.045;
+      if(p.life <= 0){ particles.splice(i,1); continue; }
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3*scale*p.life, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // target reticle for player
+    if(hasPointer){
+      const glow = locked ? 1 : Math.min(1, lockTimer/550);
+      ctx.strokeStyle = locked ? 'rgba(53,214,154,0.9)' : 'rgba(234,230,218,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(playerTarget.x, playerTarget.y, 16 + glow*10, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    if(flashTimer > 0){
+      lockedFlash.style.opacity = Math.min(1, flashTimer);
+      flashTimer -= 0.02;
+    } else {
+      lockedFlash.style.opacity = 0;
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  // scroll reveal
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+    });
+  }, { threshold: 0.15 });
+  revealEls.forEach(el => io.observe(el));
+})();
+</script>
+</body>
+</html>
