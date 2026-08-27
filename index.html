@@ -242,7 +242,12 @@
   .case-card{
     background:var(--bg);
     padding:28px 24px;
+    display:block;
+    color:inherit;
+    text-decoration:none;
+    transition:background 0.15s ease;
   }
+  .case-card:hover{ background:var(--panel); }
   .case-card .tag{
     font-family:'IBM Plex Mono',monospace;
     font-size:10px;
@@ -256,6 +261,16 @@
     margin:10px 0 8px;
   }
   .case-card p{ color:var(--muted); font-size:14px; }
+
+  .price-card .stack-note{
+    margin-top:14px;
+    padding-top:12px;
+    border-top:1px dashed var(--line);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.5;
+  }
 
   /* ---------- PHOTO SLOTS (drop your generated images in) ---------- */
   .photo-slot{
@@ -549,7 +564,7 @@
     <div class="eyebrow">Recent jobs</div>
     <p class="lede">Live, in use, and built from scratch. Not mockups. Not templates. Not someone else's plugin held together with hope.</p>
     <div class="case-grid">
-      <div class="case-card">
+      <a class="case-card" href="https://www.digznlidz.co.uk" target="_blank" rel="noopener noreferrer">
         <div class="photo-slot">
           <img src="images/case-digz.jpg" alt="Digz N' Lidz" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <div class="photo-placeholder"><b>Photo</b>images/case-digz.jpg</div>
@@ -557,8 +572,8 @@
         <div class="tag">Live</div>
         <h4>Digz N' Lidz</h4>
         <p>RC experience cafe. Online bookings, QR walk-ins and table ordering, all in one system.</p>
-      </div>
-      <div class="case-card">
+      </a>
+      <a class="case-card" href="https://www.rubiesandpearls.co.uk" target="_blank" rel="noopener noreferrer">
         <div class="photo-slot">
           <img src="images/case-rubies.jpg" alt="Rubies and Pearls" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <div class="photo-placeholder"><b>Photo</b>images/case-rubies.jpg</div>
@@ -566,8 +581,8 @@
         <div class="tag">Live</div>
         <h4>Rubies &amp; Pearls</h4>
         <p>One-of-one antique jewellery. Shop, checkout and stock manager built from scratch.</p>
-      </div>
-      <div class="case-card">
+      </a>
+      <a class="case-card" href="https://www.watagapp.co.uk" target="_blank" rel="noopener noreferrer">
         <div class="photo-slot">
           <img src="images/case-watag.jpg" alt="WATAG" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <div class="photo-placeholder"><b>Photo</b>images/case-watag.jpg</div>
@@ -575,8 +590,8 @@
         <div class="tag">Live</div>
         <h4>WATAG</h4>
         <p>Tattoo studio loyalty app with stamp cards, referrals and artist booking.</p>
-      </div>
-      <div class="case-card">
+      </a>
+      <a class="case-card" href="https://www.candymonium.co.uk" target="_blank" rel="noopener noreferrer">
         <div class="photo-slot">
           <img src="images/case-candymonium.jpg" alt="Candymonium" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <div class="photo-placeholder"><b>Photo</b>images/case-candymonium.jpg</div>
@@ -584,7 +599,7 @@
         <div class="tag">Live</div>
         <h4>Candymonium</h4>
         <p>Pick and mix sweet shop with Stripe checkout and allergen filtering.</p>
-      </div>
+      </a>
     </div>
   </div>
 </section>
@@ -695,6 +710,7 @@
           <li>Site survey, install, calibration</li>
           <li>Everything above, made real</li>
         </ul>
+        <p class="stack-note">Full technical breakdown and architecture shared under NDA once a deposit's placed. Ask on the call and we'll talk you through it.</p>
       </div>
     </div>
   </div>
